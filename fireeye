@@ -37,7 +37,7 @@ my ($file,$command);
 
 =head1 SYNOPSIS
 
- procmon procmon.xml [commands] [arguments]
+ fireeye Alert.xml [commands] [arguments]
 
 =cut
 

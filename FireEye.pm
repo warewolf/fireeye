@@ -120,5 +120,46 @@ sub pids {
   print join(" ", keys %{$pids}),"\n";
 } # }}}
 
+# COMMAND: alerts {{{
+
+=head2 alerts
+
+Display all alerts present in a file
+
+  pids
+  
+=cut 
+  
+sub alerts {
+  my ($self,@args) = @_;
+
+  my $opts = {} ;
+  my $ret = GetOptions($opts,"help|?","report=i");
+
+  my $xpath = '/FE:alerts/FE:alert';
+  if ($opts->{report}) {
+    $xpath .= sprintf('[@id=%d]',$opts->{report});
+  }
+  my $alerts = $self->doc->findnodes($xpath);
+
+  if ($opts->{help}) { # {{{
+    pod2usage(
+      -msg => "ALERTS help",
+      -verbose => 99,
+      -sections => [ qw(COMMANDS/alerts) ],
+      -exitval=>0,
+      -input => pod_where({-inc => 1}, __PACKAGE__),
+    );
+  } # }}}
+
+  foreach my $alert ($alerts->get_nodelist) {
+    my ($id,$alert_url) = map { $self->doc->findvalue($_,$alert) } qw(./@id ./FE:alert-url);
+    print "Id: $id\n";
+    print "URL: $alert_url\n";
+    
+  }
+
+} # }}}
+
 # processes = //FE:os-changes[@id=324699]/FE:process
 # operations for a pid //FE:os-changes[@id=324699]//*[./FE:processinfo/FE:pid/text() = 2544]
