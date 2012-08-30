@@ -175,7 +175,7 @@ sub processes {
   foreach my $process ($processes->get_nodelist) { # {{{
     my $info;
     @$info{qw(executable pid ppid parentname cmdline ads mode filesize md5sum sha1sum)} = map { $self->doc->findvalue($_,$process) } qw(FE:value FE:pid FE:ppid FE:parentname FE:cmdline FE:fid @mode FE:filesize FE:md5sum FE:sha1sum);
-    print Data::Dumper->Dump([$info],[qw($info)]);
+    print $process->toString(1),"\n";
     #printf("PID:\t%s\nPPID:\t%s\nParent Image:\t%s\nImage File:\t%s\nCommand Line:\t%s\n",
     #print "Executable: $executable\n";
     #print $process->toString(1),"\n";
@@ -245,5 +245,134 @@ sub files {
   } # }}}
 
 } # }}}
+
+# COMMAND: regkey {{{
+
+=head2 regkey
+
+  regkey --alert 123456 --oschange 12345432 --pid 1234 --mode=[setval|added]
+  
+=cut 
+  
+sub regkey {
+  my ($self,@args) = @_;
+
+  my $opts = {} ;
+  my $ret = GetOptions($opts,"help|?","alert=i","oschange=i","pid=i","mode=s");
+
+  my $xpath = '/FE:alerts/FE:alert';
+
+  if ($opts->{alert}) {
+    $xpath .= sprintf('[@id=%d]',$opts->{alert});
+  }
+
+  $xpath .= "/FE:explanation/FE:os-changes";
+
+  if ($opts->{oschange}) {
+    $xpath .= sprintf('[@id=%d]',$opts->{oschange});
+  }
+
+  $xpath .= "/FE:regkey";
+
+  my $expr;
+
+  if ($opts->{mode}) {
+    $expr .= ($expr?" and ":"") . sprintf('@mode = "%s"',$opts->{mode});
+  }
+
+  if ($opts->{pid}) {
+    $expr .= ($expr?" and ":"") . sprintf('FE:processinfo/FE:pid/text() = %d',$opts->{pid});
+  }
+
+  $xpath .="[ $expr ]" if ($expr);
+
+  print STDERR "xpath = $xpath\n";
+
+  my $files = $self->doc->findnodes($xpath);
+
+  if ($opts->{help}) { # {{{
+    pod2usage(
+      -msg => "REGKEY help",
+      -verbose => 99,
+      -sections => [ qw(COMMANDS/regkey) ],
+      -exitval=>0,
+      -input => pod_where({-inc => 1}, __PACKAGE__),
+    );
+  } # }}}
+
+  foreach my $file ($files->get_nodelist) { # {{{
+    my $info;
+    #@$info{qw(mode filename fid pid imagepath)} = map { $self->doc->findvalue($_,$file) } qw(@mode FE:value FE:fid FE:processinfo/FE:pid FE:processinfo/FE:imagepath);
+    print $file->toString(1),"\n";
+    #print Data::Dumper->Dump([$info],[qw($info)]);
+  } # }}}
+
+} # }}}
+
+# COMMAND: maliciousalert {{{
+
+=head2 maliciousalert
+
+  maliciousalert --alert 123456 --oschange 12345432 --classtype=[setval|added]
+  
+=cut 
+  
+sub maliciousalert {
+  my ($self,@args) = @_;
+
+  my $opts = {} ;
+  my $ret = GetOptions($opts,"help|?","alert=i","oschange=i","classtype=s");
+
+  # malicious action
+  # /FE:alerts/FE:alert[@id=59374991]/FE:explanation/FE:os-changes[@id=324788]/FE:malicious-alert/preceding-sibling::*[1]
+
+  # description of malicious action
+  # /FE:alerts/FE:alert[@id=59374991]/FE:explanation/FE:os-changes[@id=324788]/FE:malicious-alert
+
+  my $xpath = '/FE:alerts/FE:alert';
+
+  if ($opts->{alert}) {
+    $xpath .= sprintf('[@id=%d]',$opts->{alert});
+  }
+
+  $xpath .= "/FE:explanation/FE:os-changes";
+
+  if ($opts->{oschange}) {
+    $xpath .= sprintf('[@id=%d]',$opts->{oschange});
+  }
+
+  $xpath .= "/FE:malicious-alert";
+
+  my $expr;
+
+  if ($opts->{classtype}) {
+    $expr .= ($expr?" and ":"") . sprintf('@classtype = "%s"',$opts->{mode});
+  }
+
+  $xpath .="[ $expr ]" if ($expr);
+
+  print STDERR "xpath = $xpath\n";
+
+  my $files = $self->doc->findnodes($xpath);
+
+  if ($opts->{help}) { # {{{
+    pod2usage(
+      -msg => "REGKEY help",
+      -verbose => 99,
+      -sections => [ qw(COMMANDS/regkey) ],
+      -exitval=>0,
+      -input => pod_where({-inc => 1}, __PACKAGE__),
+    );
+  } # }}}
+
+  foreach my $file ($files->get_nodelist) { # {{{
+    my $info;
+    #@$info{qw(mode filename fid pid imagepath)} = map { $self->doc->findvalue($_,$file) } qw(@mode FE:value FE:fid FE:processinfo/FE:pid FE:processinfo/FE:imagepath);
+    print $file->toString(1),"\n";
+    #print Data::Dumper->Dump([$info],[qw($info)]);
+  } # }}}
+
+} # }}}
+
 # processes = //FE:os-changes[@id=324699]/FE:process
 # operations for a pid //FE:os-changes[@id=324699]//*[./FE:processinfo/FE:pid/text() = 2544]
