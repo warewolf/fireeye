@@ -78,55 +78,13 @@ sub xpath {
   $self->_simple_dump($xpath);
 } # }}}
 
-# COMMAND: pids {{{
-
-=head2 pids
-
-Display all pids present in a log file.
-
-  pids
-
-=cut
-
-sub pids {
-  my ($self,@args) = @_;
-
-  my $opts = {} ;
-  my $ret = GetOptions($opts,"help|?","report=i");
-
-  my $xpath = '/FE:alerts/FE:alert/FE:explanation/FE:os-changes';
-  if ($opts->{report}) {
-    $xpath .= sprintf('[@id=%d]',$opts->{report});
-  }
-  my $nodelist = $self->doc->findnodes($xpath);
-
-  if ($opts->{help}) { # {{{
-    pod2usage(
-      -msg => "PIDS help",
-      -verbose => 99,
-      -sections => [ qw(COMMANDS/pids) ],
-      -exitval=>0,
-      -input => pod_where({-inc => 1}, __PACKAGE__),
-    );
-  } # }}}
-
-  my $pids;
-  foreach my $node ($nodelist->get_nodelist) {
-    foreach my $value_node ($self->doc->findnodes('.//FE:pid',$node)) {
-      my $value = $value_node->to_literal();
-      $pids->{$value}++;
-    }
-  }
-  print join(" ", keys %{$pids}),"\n";
-} # }}}
-
 # COMMAND: alerts {{{
 
 =head2 alerts
 
 Display all alerts present in a file
 
-  pids
+  alerts --alert 123456
   
 =cut 
   
@@ -134,12 +92,14 @@ sub alerts {
   my ($self,@args) = @_;
 
   my $opts = {} ;
-  my $ret = GetOptions($opts,"help|?","report=i");
+  my $ret = GetOptions($opts,"help|?","alert=i");
 
   my $xpath = '/FE:alerts/FE:alert';
-  if ($opts->{report}) {
-    $xpath .= sprintf('[@id=%d]',$opts->{report});
+
+  if ($opts->{alert}) {
+    $xpath .= sprintf('[@id=%d]',$opts->{alert});
   }
+
   my $alerts = $self->doc->findnodes($xpath);
 
   if ($opts->{help}) { # {{{
@@ -152,14 +112,75 @@ sub alerts {
     );
   } # }}}
 
-  foreach my $alert ($alerts->get_nodelist) {
-    my ($id,$alert_url) = map { $self->doc->findvalue($_,$alert) } qw(./@id ./FE:alert-url);
-    print "Id: $id\n";
-    print "URL: $alert_url\n";
-    
-  }
+  foreach my $alert ($alerts->get_nodelist) { # {{{
+    my ($alert_id,$alert_url) = map { $self->doc->findvalue($_,$alert) } qw(./@id ./FE:alert-url);
+    print "Alert id: $alert_id\n";
+    print "Alert URL: $alert_url\n";
+    my $os_changes =  $self->doc->findnodes('./FE:explanation/FE:os-changes',$alert);
+    foreach my $os_change ($os_changes->get_nodelist) { # {{{
+      my ($os_change_id,$osinfo,$version) = map { $self->doc->findvalue($_,$os_change) } qw(./@id ./@osinfo ./@version);
+      print "\tOS Change ID: $os_change_id\n";
+      print "\tOS Change Info: $osinfo\n";
+      print "\tOS Version: $version\n";
+    }  # }}}
+  } # }}}
 
 } # }}}
 
+# COMMAND: processes {{{
+
+=head2 processes
+
+  processes --alert 123456 --oschange 12345432
+  
+=cut 
+  
+sub processes {
+  my ($self,@args) = @_;
+
+  my $opts = {} ;
+  my $ret = GetOptions($opts,"help|?","alert=i","oschange=i","lifecycle=s");
+
+  my $xpath = '/FE:alerts/FE:alert';
+
+  if ($opts->{alert}) {
+    $xpath .= sprintf('[@id=%d]',$opts->{alert});
+  }
+
+  $xpath .= "/FE:explanation/FE:os-changes";
+
+  if ($opts->{oschange}) {
+    $xpath .= sprintf('[@id=%d]',$opts->{oschange});
+  }
+
+  $xpath .= "/FE:process";
+
+  if ($opts->{lifecycle}) {
+    $xpath .= sprintf('[@mode="%s"]',$opts->{lifecycle});
+  }
+
+  print STDERR "xpath = $xpath\n";
+  my $processes = $self->doc->findnodes($xpath);
+
+  if ($opts->{help}) { # {{{
+    pod2usage(
+      -msg => "ALERTS help",
+      -verbose => 99,
+      -sections => [ qw(COMMANDS/alerts) ],
+      -exitval=>0,
+      -input => pod_where({-inc => 1}, __PACKAGE__),
+    );
+  } # }}}
+
+  foreach my $process ($processes->get_nodelist) { # {{{
+    my $info;
+    @$info{qw(executable pid ppid parentname cmdline ads mode filesize md5sum sha1sum)} = map { $self->doc->findvalue($_,$process) } qw(FE:value FE:pid FE:ppid FE:parentname FE:cmdline FE:fid @mode FE:filesize FE:md5sum FE:sha1sum);
+    print Data::Dumper->Dump([$info],[qw($info)]);
+    #printf("PID:\t%s\nPPID:\t%s\nParent Image:\t%s\nImage File:\t%s\nCommand Line:\t%s\n",
+    #print "Executable: $executable\n";
+    #print $process->toString(1),"\n";
+  } # }}}
+
+} # }}}
 # processes = //FE:os-changes[@id=324699]/FE:process
 # operations for a pid //FE:os-changes[@id=324699]//*[./FE:processinfo/FE:pid/text() = 2544]
