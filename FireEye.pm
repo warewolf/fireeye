@@ -131,7 +131,7 @@ sub alerts {
 
 =head2 processes
 
-  processes --alert 123456 --oschange 12345432
+  processes --alert 123456 --oschange 12345432 --lifecycle=[started|terminated]
   
 =cut 
   
@@ -179,6 +179,69 @@ sub processes {
     #printf("PID:\t%s\nPPID:\t%s\nParent Image:\t%s\nImage File:\t%s\nCommand Line:\t%s\n",
     #print "Executable: $executable\n";
     #print $process->toString(1),"\n";
+  } # }}}
+
+} # }}}
+
+# COMMAND: files {{{
+
+=head2 files
+
+  files --alert 123456 --oschange 12345432 --pid 1234
+  
+=cut 
+  
+sub files {
+  my ($self,@args) = @_;
+
+  my $opts = {} ;
+  my $ret = GetOptions($opts,"help|?","alert=i","oschange=i","pid=i","mode=s");
+
+  my $xpath = '/FE:alerts/FE:alert';
+
+  if ($opts->{alert}) {
+    $xpath .= sprintf('[@id=%d]',$opts->{alert});
+  }
+
+  $xpath .= "/FE:explanation/FE:os-changes";
+
+  if ($opts->{oschange}) {
+    $xpath .= sprintf('[@id=%d]',$opts->{oschange});
+  }
+
+  $xpath .= "/FE:file";
+
+  my $expr;
+
+  if ($opts->{mode}) {
+    $expr .= ($expr?" and ":"") . sprintf('@mode = "%s"',$opts->{mode});
+  }
+
+  if ($opts->{pid}) {
+    $expr .= ($expr?" and ":"") . sprintf('FE:processinfo/FE:pid/text() = %d',$opts->{pid});
+  }
+
+  $xpath .="[ $expr ]" if ($expr);
+
+  print STDERR "xpath = $xpath\n";
+
+  my $files = $self->doc->findnodes($xpath);
+
+  if ($opts->{help}) { # {{{
+    pod2usage(
+      -msg => "FILES help",
+      -verbose => 99,
+      -sections => [ qw(COMMANDS/files) ],
+      -exitval=>0,
+      -input => pod_where({-inc => 1}, __PACKAGE__),
+    );
+  } # }}}
+
+  foreach my $file ($files->get_nodelist) { # {{{
+    my $info;
+    #@$info{qw(mode filename fid pid imagepath)} = map { $self->doc->findvalue($_,$file) } qw(@mode FE:value FE:fid FE:processinfo/FE:pid FE:processinfo/FE:imagepath);
+    print $file->toString(1),"\n";
+    #print Data::Dumper->Dump([$info],[qw($info)]);
   } # }}}
 
 } # }}}
