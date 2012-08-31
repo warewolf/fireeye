@@ -50,7 +50,6 @@ my $intersection = sub (\@\@) { # {{{
 Search with a freeform XPath expression.
 
   xpath --expression="/xpath/node[criteria='selection']"
-  xpath --event="/xpath/node[criteria='selection']" --value="xpath"
 
 =cut
 
@@ -82,7 +81,7 @@ sub xpath {
 
 =head2 alerts
 
-Display all alerts present in a file
+Display all alerts present in a file, displaying malware sample info and os change IDs
 
   alerts --alert 123456
   
@@ -113,15 +112,21 @@ sub alerts {
   } # }}}
 
   foreach my $alert ($alerts->get_nodelist) { # {{{
-    my ($alert_id,$alert_url) = map { $self->doc->findvalue($_,$alert) } qw(./@id ./FE:alert-url);
-    print "Alert id: $alert_id\n";
-    print "Alert URL: $alert_url\n";
+
+    my $alert_info;
+    @$alert_info{qw(alert_id alert_url)} = map { $self->doc->findvalue($_,$alert) } qw(./@id ./FE:alert-url);
+    print Data::Dumper->Dump([$alert_info],[qw($alert_info)]);
+
+    my $malware;
+    my ($malware_node) = $self->doc->findnodes("FE:explanation/FE:malware-detected/FE:malware",$alert);
+    @$malware{qw(name type downloaded-at md5sum original executed-at application)} = map { $self->doc->findvalue($_,$malware_node) } qw(@name @type FE:downloaded-at FE:md5sum FE:original FE:executed-at FE:application);
+    print Data::Dumper->Dump([$malware],[qw($malware)]);
+
     my $os_changes =  $self->doc->findnodes('./FE:explanation/FE:os-changes',$alert);
     foreach my $os_change ($os_changes->get_nodelist) { # {{{
-      my ($os_change_id,$osinfo,$version) = map { $self->doc->findvalue($_,$os_change) } qw(./@id ./@osinfo ./@version);
-      print "\tOS Change ID: $os_change_id\n";
-      print "\tOS Change Info: $osinfo\n";
-      print "\tOS Version: $version\n";
+      my $os_change_info;
+      @$os_change_info{qw(id info version)} = map { $self->doc->findvalue($_,$os_change) } qw(./@id ./@osinfo ./@version);
+      print Data::Dumper->Dump([$os_change_info],[qw($os_change_info)]);
     }  # }}}
   } # }}}
 
@@ -130,6 +135,8 @@ sub alerts {
 # COMMAND: processes {{{
 
 =head2 processes
+
+Display all processes in an alert, optionally filtered by oschange ID or lifecycle.
 
   processes --alert 123456 --oschange 12345432 --lifecycle=[started|terminated]
   
@@ -166,7 +173,7 @@ sub processes {
     pod2usage(
       -msg => "ALERTS help",
       -verbose => 99,
-      -sections => [ qw(COMMANDS/alerts) ],
+      -sections => [ qw(COMMANDS/processes) ],
       -exitval=>0,
       -input => pod_where({-inc => 1}, __PACKAGE__),
     );
@@ -187,7 +194,9 @@ sub processes {
 
 =head2 files
 
-  files --alert 123456 --oschange 12345432 --pid 1234
+Display file operations in an alert, optionally filtered by oschange ID, process ID, or file operation (mode).
+
+  files --alert 123456 --oschange 12345432 --pid 1234 --mode=close
   
 =cut 
   
@@ -351,9 +360,8 @@ sub maliciousalert {
 
   $xpath .="[ $expr ]" if ($expr);
 
+  my $maliciousalerts = $self->doc->findnodes($xpath."|$xpath/preceding-sibling::*[1]");
   print STDERR "xpath = $xpath\n";
-
-  my $files = $self->doc->findnodes($xpath);
 
   if ($opts->{help}) { # {{{
     pod2usage(
@@ -365,10 +373,10 @@ sub maliciousalert {
     );
   } # }}}
 
-  foreach my $file ($files->get_nodelist) { # {{{
+  foreach my $maliciousalerts ($maliciousalerts->get_nodelist) { # {{{
     my $info;
     #@$info{qw(mode filename fid pid imagepath)} = map { $self->doc->findvalue($_,$file) } qw(@mode FE:value FE:fid FE:processinfo/FE:pid FE:processinfo/FE:imagepath);
-    print $file->toString(1),"\n";
+    print $maliciousalerts->toString(1),"\n";
     #print Data::Dumper->Dump([$info],[qw($info)]);
   } # }}}
 
