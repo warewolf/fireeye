@@ -382,5 +382,7 @@ sub maliciousalert {
 
 } # }}}
 
-# processes = //FE:os-changes[@id=324699]/FE:process
-# operations for a pid //FE:os-changes[@id=324699]//*[./FE:processinfo/FE:pid/text() = 2544]
+# network
+# codeinjection
+# exploitcode
+# appexception
