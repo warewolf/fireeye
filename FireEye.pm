@@ -94,7 +94,7 @@ sub alerts {
   my $opts = {} ;
   my $ret = GetOptions($opts,"help|?","alert=i");
 
-  my $xpath = '/FE:alerts/FE:alert';
+  my $xpath = '/FE:alerts/FE:alert[contains(name(./FE:explanation/FE:os-changes),"os-changes")]';
 
   if ($opts->{alert}) {
     $xpath .= sprintf('[@id=%d]',$opts->{alert});
