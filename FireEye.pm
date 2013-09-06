@@ -93,7 +93,8 @@ sub alerts {
   my $opts = {} ;
   my $ret = GetOptions($opts,"help|?","alert=i");
 
-  my $xpath = '/FE:alerts/FE:alert[contains(name(./FE:explanation/FE:os-changes),"os-changes")]';
+  #my $xpath = '/FE:alerts/FE:alert[contains(name(./FE:explanation/FE:os-changes),"os-changes")]';
+  my $xpath = '/FE:alerts/FE:alert';
 
   if ($opts->{alert}) {
     $xpath .= sprintf('[@id=%d]',$opts->{alert});
@@ -112,6 +113,14 @@ sub alerts {
   } # }}}
 
   foreach my $alert ($alerts->get_nodelist) { # {{{
+
+    my ($smtp_message) = $self->doc->findnodes("FE:smtp-message",$alert);
+    my ($src) = $self->doc->findnodes("FE:src",$alert);
+    my ($dst) = $self->doc->findnodes("FE:dst",$alert);
+
+    my $message_info;
+    @$message_info{qw(subject date smtp-mail-from smtp-to)} = ( map { $self->doc->findvalue($_,$smtp_message) } qw(FE:subject FE:date)),( map { $self->doc->findvalue($_,$src) } qw(FE:smtp-mail-from)), ( map { $self->doc->findvalue($_,$dst) } qw(FE:smtp-to) );
+    print Data::Dumper->Dump([$message_info],[qw($message_info)]);
 
     my $alert_info;
     @$alert_info{qw(alert_id alert_url)} = map { $self->doc->findvalue($_,$alert) } qw(./@id ./FE:alert-url);
@@ -360,8 +369,10 @@ sub maliciousalert {
 
   $xpath .="[ $expr ]" if ($expr);
 
-  my $maliciousalerts = $self->doc->findnodes($xpath."|$xpath/preceding-sibling::*[1]");
-  print STDERR "xpath = $xpath\n";
+
+  my $new_xpath = "$xpath|$xpath/preceding-sibling::*[1]";
+  my $maliciousalerts = $self->doc->findnodes($new_xpath);
+  print STDERR "xpath = $new_xpath\n";
 
   if ($opts->{help}) { # {{{
     pod2usage(
